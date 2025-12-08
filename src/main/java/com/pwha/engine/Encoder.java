@@ -94,11 +94,20 @@ public class Encoder {
             if (getSeparators().contains(b)) {
                 if(bos.size() > 0){
                     encodeWord(bos.toByteArray(), bitWriter);
-                    bos.reset();
                 }
 
-                ContextLeaf contextLeaf = HuffmanStructure.getContextLeaf(b);
-                bitWriter.writeBits(contextLeaf.getCode());
+                ContextLeaf contextLeaf = HuffmanStructure.getContextLeaf(bos.toByteArray()[0]);
+
+                String localSepCode = contextLeaf.getSubCode(new ByteArrayWrapper(new byte[]{b}));
+
+                if(localSepCode != null){
+                    bitWriter.writeBits(localSepCode);
+                }else{
+                    ContextLeaf globalSep = HuffmanStructure.getContextLeaf(b);
+                    bitWriter.writeBits(globalSep.getCode());
+                }
+
+                bos.reset();
             }else{
                 bos.write(b);
             }
