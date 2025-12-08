@@ -6,15 +6,13 @@ import com.pwha.model.node.ContextLeaf;
 import com.pwha.model.node.HNode;
 import com.pwha.model.node.InternalNode;
 import com.pwha.model.node.SimpleLeaf;
-import com.pwha.util.Constant;
+import com.pwha.util.SeparatorUtils;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
 
 public class Decoder {
     private HashMap<Byte, ContextLeaf> globalContextMap;
@@ -27,7 +25,7 @@ public class Decoder {
 
         ObjectInputStream ois = new ObjectInputStream(fis);
 
-        globalContextMap = (HashMap<Byte, ContextLeaf>) ois.readObject();
+        this.globalContextMap = (HashMap<Byte, ContextLeaf>) ois.readObject();
 
         System.out.println("Dictionary is downloaded. Huffman Tree is rebuilding...");
 
@@ -44,20 +42,20 @@ public class Decoder {
     }
 
     private void rebuildAllTrees() {
-        for(ContextLeaf contextLeaf : globalContextMap.values()) {
-            contextLeaf.setSubQueue();
-            HuffmanStructure.buildSubTree(contextLeaf);
+        for(ContextLeaf contextNode : globalContextMap.values()) {
+            contextNode.setSubQueue();
+            HuffmanStructure.buildSubTree(contextNode);
         }
 
         var globalQueue = HuffmanStructure.setQueue(globalContextMap);
-        globalTreeRoot = HuffmanStructure.buildSuperTree(globalQueue);
+        this.globalTreeRoot = HuffmanStructure.buildSuperTree(globalQueue);
     }
 
     private void decodeContent(BitReader bitReader, FileOutputStream fos) throws IOException {
         ContextLeaf currentContext = null;
         while(true) {
             HNode currentNode;
-            if(currentContext == null) {
+            if(currentContext == null || currentContext.getSubTreeRoot() == null) {
                 currentNode = globalTreeRoot;
             }else {
                 currentNode = currentContext.getSubTreeRoot();
@@ -81,7 +79,7 @@ public class Decoder {
                 byte data = leaf.getData();
                 fos.write(data);
 
-                if(isSeparator(data)){
+                if(SeparatorUtils.isSeparator(data)){
                     currentContext = null;
                 } else{
                     currentContext  = leaf;
@@ -91,51 +89,12 @@ public class Decoder {
                 byte[] data = leaf.getPattern().data();
                 fos.write(data);
 
-                if(data.length == 1 && isSeparator(data[0])){
+                if(data.length == 1 && SeparatorUtils.isSeparator(data[0])){
                     currentContext = null;
                 }else{
 
                 }
             }
-
-
-            /*
-            SimpleLeaf simpleLeaf = (SimpleLeaf) currentNode;
-            byte[] data = simpleLeaf.getPattern().data();
-            fos.write(data);
-
-
-            if(currentContext == null){
-                byte charCode = data[0];
-
-                if(getSeparators().contains(charCode)) {
-                    currentContext = null;
-                }else {
-                    currentContext = globalContextMap.get(charCode);
-
-                    if(currentContext == null || currentContext.getSubTreeRoot() == null) {
-                        currentContext = null;
-                    }
-                }
-            } else{
-                if(data.length == 1 && isSeparator(data[0])) {
-                    currentContext = null;
-                }
-            }
-
-             */
         }
-    }
-
-    private static Set<Byte> getSeparators(){
-        Set<Byte> separators = new HashSet<>();
-        for(byte b : Constant.SEPARATORS.getBytes()){
-            separators.add(b);
-        }
-        return separators;
-    }
-
-    private boolean isSeparator(byte b) {
-        return com.pwha.util.Constant.SEPARATORS.indexOf((char) b) != -1;
     }
 }

@@ -3,84 +3,37 @@ package com.pwha.engine;
 import com.pwha.Main;
 import com.pwha.core.HuffmanStructure;
 import com.pwha.io.BitWriter;
-import com.pwha.io.ByteReader;
 import com.pwha.model.ByteArrayWrapper;
 import com.pwha.model.node.ContextLeaf;
 import com.pwha.model.node.HNode;
-import com.pwha.util.Constant;
-import com.pwha.util.HuffmanUtil;
+import com.pwha.util.SeparatorUtils;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class Encoder {
+    private final HNode root;
+    private final Map<Byte, ContextLeaf> dictionary;
+
+    public Encoder(HNode root, Map<Byte, ContextLeaf> dictionary) {
+        this.root = root;
+        this.dictionary = dictionary;
+    }
     public void compress(String inputFile, String outputFile) throws IOException {
-        Scanner sc = new Scanner(System.in);
+        System.out.println("Compressing and File Writing");
 
-        //First Step Analyzing File. It means we are taking datas from our files.
-        System.out.println("Compressing " + inputFile + " to " + outputFile);
-        System.out.println("1. Stage : File Analyzing...");
-        analyzeFile(inputFile);
-
-        //Second step is building Huffman Tree and Dictionary.
-        System.out.println("2. Stage : Huffman Structure...");
-        buildTreesAndCodes();
-        HuffmanUtil.printUpperTreeCodes(Main.upperTreeRoot, new StringBuilder());
-
-        System.out.println("3. Stage : Compressing and File Writing...");
-
-        //We are writing Dictionary first. We will use dictionary when we want to decode.
-        FileOutputStream fos = new FileOutputStream(outputFile);
-        writeHeader(fos);
-
-
-        BitWriter bitWriter = new BitWriter(fos);
-        encodeContent(inputFile, bitWriter);
-
-        bitWriter.close();
+        try(FileOutputStream fos = new FileOutputStream(outputFile);
+            BitWriter bitWriter = new BitWriter(fos)) {
+            writeHeader(fos);
+            encodeContent(inputFile, bitWriter);
+        }
 
         System.out.println("Compressing complete... " + outputFile);
-
-
-        /*
-        System.out.print("Kodu dönecek char değerini yazınız :");
-        String value = sc.nextLine();
-        byte[] charValue = value.getBytes(StandardCharsets.UTF_8);
-        ContextLeaf cl = HuffmanStructure.getContextLeaf(charValue[0]);
-
-        System.out.println(cl.getCode());
-
-        String pattern = sc.nextLine();
-
-        ByteArrayWrapper patternBytes = new ByteArrayWrapper(pattern.getBytes(StandardCharsets.UTF_8));
-
-        System.out.println(cl.getSubCode(patternBytes));
-
-         */
-
-    }
-
-    private void analyzeFile(String inputFile)  throws IOException {
-        try (FileInputStream fis = new FileInputStream(inputFile)){
-            ByteReader reader = new ByteReader();
-            reader.collectWords(fis);
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-
-    private void buildTreesAndCodes(){
-        PriorityQueue<ContextLeaf> queue = HuffmanStructure.setQueue(Main.supperFreqMap);
-        HNode root = HuffmanStructure.buildSuperTree(queue);
-        HuffmanStructure.buildDictionary(root,"");
-
-        Main.upperTreeRoot = root;
     }
 
     private void writeHeader(OutputStream outputFile) throws IOException {
         ObjectOutputStream oos = new ObjectOutputStream(outputFile);
-        oos.writeObject(Main.dictionary);
+        oos.writeObject(this.dictionary);
         oos.flush();
     }
 
@@ -90,26 +43,32 @@ public class Encoder {
 
         int data;
         while((data = fis.read()) != -1) {
-            byte b = (byte) data;
-            if (getSeparators().contains(b)) {
+            byte byteValue = (byte) data;
+            if (SeparatorUtils.isSeparator(byteValue)) {
                 if(bos.size() > 0){
                     encodeWord(bos.toByteArray(), bitWriter);
                 }
 
-                ContextLeaf contextLeaf = HuffmanStructure.getContextLeaf(bos.toByteArray()[0]);
+                if(bos.size() > 0){
+                    byte contextByte = bos.toByteArray()[0];
+                    ContextLeaf contextLeaf = this.dictionary.get(contextByte);
 
-                String localSepCode = contextLeaf.getSubCode(new ByteArrayWrapper(new byte[]{b}));
+                    String localSepCode = null;
+                    if(contextLeaf != null) {
+                        localSepCode = contextLeaf.getSubCode(new ByteArrayWrapper(new byte[]{byteValue}));
+                    }
 
-                if(localSepCode != null){
-                    bitWriter.writeBits(localSepCode);
-                }else{
-                    ContextLeaf globalSep = HuffmanStructure.getContextLeaf(b);
-                    bitWriter.writeBits(globalSep.getCode());
+                    if(localSepCode != null){
+                        bitWriter.writeBits(localSepCode);
+                    }else{
+                        encodeGlobalSeparator(byteValue, bitWriter);
+                    }
+                } else {
+                    encodeGlobalSeparator(byteValue, bitWriter);
                 }
-
                 bos.reset();
             }else{
-                bos.write(b);
+                bos.write(byteValue);
             }
         }
 
@@ -122,27 +81,41 @@ public class Encoder {
 
     private void encodeWord(byte[] word, BitWriter bitWriter) throws IOException {
         if(word.length == 0){return;}
-
         byte contextByte = word[0];
-        ContextLeaf contextLeaf = HuffmanStructure.getContextLeaf(contextByte);
-        bitWriter.writeBits(contextLeaf.getCode());
+
+        ContextLeaf contextNode = this.dictionary.get(contextByte);
+
+        if(contextNode == null){
+            throw new IOException("Dictionary match failed for byte : " + contextByte);
+        }
+
+        bitWriter.writeBits(contextNode.getCode());
 
         if(word.length > 1){
             byte[] remain =  Arrays.copyOfRange(word, 1, word.length);
-            processGreedyMatch(remain,  bitWriter, contextLeaf);
+            processGreedyMatch(remain,  bitWriter, contextNode);
         }
     }
 
-    private void processGreedyMatch(byte[] data, BitWriter bitWriter, ContextLeaf contextLeaf) throws IOException {
+    private void encodeGlobalSeparator(byte separator, BitWriter bitWriter) throws IOException {
+        ContextLeaf globalSepNode = this.dictionary.get(separator);
+        if(globalSepNode != null){
+            bitWriter.writeBits(globalSepNode.getCode());
+        } else {
+            System.out.println("Char couldn't found in Map : " + (char) separator);
+        }
+    }
+
+    private void processGreedyMatch(byte[] byteValue, BitWriter bitWriter, ContextLeaf contextNode) throws IOException {
         int start = 0;
-        while (start < data.length) {
+        while (start < byteValue.length) {
             boolean found = false;
 
-            for(int end = data.length; end > start; end--){
-                byte[] sub = Arrays.copyOfRange(data, start, end);
+            for(int end = byteValue.length; end > start; end--){
+                byte[] sub = Arrays.copyOfRange(byteValue, start, end);
                 ByteArrayWrapper key = new ByteArrayWrapper(sub);
 
-                String code = contextLeaf.getSubCode(key);
+                String code = contextNode.getSubCode(key);
 
                 if(code != null){
                     bitWriter.writeBits(code);
@@ -156,12 +129,5 @@ public class Encoder {
                 start++;
             }
         }
-    }
-    private static Set<Byte> getSeparators(){
-        Set<Byte> separators = new HashSet<>();
-        for(byte b : Constant.SEPARATORS.getBytes()){
-            separators.add(b);
-        }
-        return separators;
     }
 }

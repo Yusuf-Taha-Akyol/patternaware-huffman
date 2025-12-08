@@ -4,25 +4,25 @@ import com.pwha.Main;
 import com.pwha.model.node.ContextLeaf;
 import com.pwha.model.node.HNode;
 import com.pwha.model.node.InternalNode;
-import com.pwha.model.node.SimpleLeaf;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.PriorityQueue;
 
 public class HuffmanStructure {
-    public static PriorityQueue<ContextLeaf> setQueue(HashMap<Byte, ContextLeaf> freqMap) {
-        PriorityQueue<ContextLeaf> priorityQueue = new PriorityQueue<>();
-        for(ContextLeaf contextLeaf : freqMap.values()){
-            contextLeaf.setSubQueue();
-            priorityQueue.add(contextLeaf);
+    public static PriorityQueue<ContextLeaf> setQueue(Map<Byte, ContextLeaf> freqMap) {
+        PriorityQueue<ContextLeaf> pq = new PriorityQueue<>();
+        for(ContextLeaf contextNode : freqMap.values()){
+            contextNode.setSubQueue();
+            pq.add(contextNode);
         }
 
-        return priorityQueue;
+        return pq;
     }
 
-    public static HNode buildSuperTree(PriorityQueue<ContextLeaf> Queue) {
+    public static HNode buildSuperTree(PriorityQueue<ContextLeaf> pq) {
         PriorityQueue<HNode> pqUpper = new PriorityQueue<>();
-        pqUpper.addAll(Queue);
+        pqUpper.addAll(pq);
 
         while (pqUpper.size() > 1) {
             HNode left =  pqUpper.poll();
@@ -47,10 +47,10 @@ public class HuffmanStructure {
         return pqUpper.poll();
     }
 
-    public static void buildSubTree(ContextLeaf contextLeaf) {
+    public static void buildSubTree(ContextLeaf contextNode) {
         PriorityQueue<HNode> pqSub = new PriorityQueue<>();
-        contextLeaf.setSubQueue();
-        pqSub.addAll(contextLeaf.getSubQueue());
+        contextNode.setSubQueue();
+        pqSub.addAll(contextNode.getSubQueue());
 
         while (pqSub.size() > 1) {
             HNode left = pqSub.poll();
@@ -66,40 +66,22 @@ public class HuffmanStructure {
             pqSub.add(parentNode);
         }
 
-        contextLeaf.setSubTreeRoot(pqSub.poll());
+        contextNode.setSubTreeRoot(pqSub.poll());
     }
 
-    public static void buildDictionary(HNode node, String currentCode) {
+    public static void buildDictionary(HNode node, String currentCode, Map<Byte, ContextLeaf> dictionary) {
         if(node == null){return;}
 
-        if(node instanceof ContextLeaf contextLeaf){
-            contextLeaf.setCode(currentCode);
-            Main.dictionary.put(contextLeaf.getData(), contextLeaf);
-            contextLeaf.generateCode();
+        if(node instanceof ContextLeaf contextNode){
+            contextNode.setCode(currentCode);
+            dictionary.put(contextNode.getData(), contextNode);
+            contextNode.generateCode();
         }
 
         if(node instanceof InternalNode internalNode){
-
-            buildDictionary(internalNode.getLeft(),currentCode + 0);
-            buildDictionary(internalNode.getRight(), currentCode + 1);
+            buildDictionary(internalNode.getLeft(),currentCode + 0,dictionary);
+            buildDictionary(internalNode.getRight(), currentCode + 1,dictionary);
         }
 
-    }
-
-    public static ContextLeaf getContextLeaf(byte key) {
-        return Main.dictionary.get(key);
-    }
-
-    public static void printQueue(PriorityQueue<ContextLeaf> queue) {
-        while (!queue.isEmpty()) {
-            ContextLeaf contextLeaf = queue.poll();
-            System.out.println((char) contextLeaf.getData() + " Karakterinin üst ağaç Değeri : " + contextLeaf.getFrequency());
-
-            PriorityQueue<SimpleLeaf> subQueue = contextLeaf.getSubQueue();
-            while (!subQueue.isEmpty()) {
-                SimpleLeaf simpleLeaf = subQueue.poll();
-                System.out.println(simpleLeaf.convertString() + ":" +  simpleLeaf.getFrequency());
-            }
-        }
     }
 }

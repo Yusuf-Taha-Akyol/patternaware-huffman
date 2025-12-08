@@ -37,16 +37,12 @@ public class ContextLeaf extends HNode implements Serializable {
         this.subTreeRoot = subTreeRoot;
     }
 
-    public HashMap<ByteArrayWrapper, Integer> getSubFreqMap(){
-        return this.freqMap;
-    }
-
-    public void addToFreqMap(byte[] key) {
+    public void addToFreqMap(byte[] pattern) {
         //There will be added Space-Save algorithm
-        if(key.length > Constant.MAX_PATTERN_LENGTH){
+        if(pattern.length > Constant.MAX_PATTERN_LENGTH){
             return;
         }
-        ByteArrayWrapper byteArrayWrapper = new ByteArrayWrapper(key);
+        ByteArrayWrapper byteArrayWrapper = new ByteArrayWrapper(pattern);
 
         if(byteArrayWrapper.length() == 1){
             freqMap.put(byteArrayWrapper, freqMap.getOrDefault(byteArrayWrapper, 0)+1);
@@ -126,9 +122,9 @@ public class ContextLeaf extends HNode implements Serializable {
     private void traverseAndBuildDictionary(HNode node, String currentCode){
         if(node == null) return;
 
-        if(node instanceof SimpleLeaf simpleLeaf){
+        if(node instanceof SimpleLeaf simpleNode){
 
-            this.subDictionary.put(simpleLeaf.getPattern(), currentCode);
+            this.subDictionary.put(simpleNode.getPattern(), currentCode);
         }
 
         if(node instanceof InternalNode internalNode){
