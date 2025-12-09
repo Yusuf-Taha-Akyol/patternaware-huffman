@@ -1,7 +1,5 @@
 package com.pwha.engine;
 
-import com.pwha.Main;
-import com.pwha.core.HuffmanStructure;
 import com.pwha.io.BitWriter;
 import com.pwha.model.ByteArrayWrapper;
 import com.pwha.model.node.ContextLeaf;
@@ -36,7 +34,6 @@ public class Encoder {
         oos.writeObject(this.dictionary);
         oos.flush();
     }
-
     private void encodeContent(String inputFile, BitWriter bitWriter) throws IOException {
         FileInputStream fis = new FileInputStream(inputFile);
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
