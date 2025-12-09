@@ -6,30 +6,32 @@ import com.pwha.engine.Encoder;
 import com.pwha.io.ByteReader;
 import com.pwha.model.node.HNode;
 import com.pwha.service.FrequencyService;
+import com.pwha.util.Constant;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileInputStream;
 
 public class App extends JFrame {
 
-    private HNode currentRoot;
-    private JButton viewTreeButton;
     private JTextField filePathField;
     private JTextArea logArea;
     private JButton compressButton;
     private JButton decompressButton;
+    private JButton viewTreeButton;
     private File selectedFile;
+    private HNode currentRoot;
+
+    // Ayar bileşenleri
+    private JSpinner patternLengthSpinner;
+    private JSpinner patternAmountSpinner;
 
     public static void main(String[] args) {
-        // Arayüzü "Event Dispatch Thread" üzerinde başlat
         SwingUtilities.invokeLater(() -> {
             try {
-                // İşletim sistemi temasına uyum sağla (Windows/Mac görünümü)
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             } catch (Exception e) {
                 e.printStackTrace();
@@ -41,8 +43,8 @@ public class App extends JFrame {
     public App() {
         setTitle("Pattern-Aware Huffman Compressor");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(600, 450);
-        setLocationRelativeTo(null); // Ekranın ortasında aç
+        setSize(700, 600); // Paneller arttığı için boyutu büyüttük
+        setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
         // --- ÜST PANEL (DOSYA SEÇİMİ) ---
@@ -60,9 +62,27 @@ public class App extends JFrame {
 
         add(topPanel, BorderLayout.NORTH);
 
-        // --- ORTA PANEL (LOG EKRANI) ---
-        JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        // --- AYARLAR PANELİ (YENİ) ---
+        JPanel settingsPanel = new JPanel(new GridLayout(1, 4, 10, 10));
+        settingsPanel.setBorder(new TitledBorder("Algorithm Settings"));
+
+        // Pattern Length Ayarı
+        settingsPanel.add(new JLabel("Max Pattern Length:", SwingConstants.RIGHT));
+        // Varsayılan: 20, Min: 2, Max: 100, Adım: 1
+        patternLengthSpinner = new JSpinner(new SpinnerNumberModel(20, 2, 100, 1));
+        settingsPanel.add(patternLengthSpinner);
+
+        // Pattern Amount Ayarı
+        settingsPanel.add(new JLabel("Max Pattern Amount:", SwingConstants.RIGHT));
+        // Varsayılan: 1000, Min: 100, Max: 100000, Adım: 100
+        patternAmountSpinner = new JSpinner(new SpinnerNumberModel(1000, 100, 100000, 100));
+        settingsPanel.add(patternAmountSpinner);
+
+        // --- ORTA PANEL (LOG EKRANI + AYARLAR) ---
+        JPanel centerContainer = new JPanel(new BorderLayout(10, 10));
+        centerContainer.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        centerContainer.add(settingsPanel, BorderLayout.NORTH);
 
         logArea = new JTextArea();
         logArea.setEditable(false);
@@ -70,10 +90,9 @@ public class App extends JFrame {
         logArea.setBackground(new Color(245, 245, 245));
         JScrollPane scrollPane = new JScrollPane(logArea);
 
-        centerPanel.add(new JLabel("Process Log:"), BorderLayout.NORTH);
-        centerPanel.add(scrollPane, BorderLayout.CENTER);
+        centerContainer.add(scrollPane, BorderLayout.CENTER);
 
-        add(centerPanel, BorderLayout.CENTER);
+        add(centerContainer, BorderLayout.CENTER);
 
         // --- ALT PANEL (BUTONLAR) ---
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
@@ -81,15 +100,14 @@ public class App extends JFrame {
         decompressButton = new JButton("Decompress File");
         viewTreeButton = new JButton("View Tree");
 
-        // Butonları başta pasif yap (dosya seçilmedi)
         compressButton.setEnabled(false);
         decompressButton.setEnabled(false);
         viewTreeButton.setEnabled(false);
 
-        // Buton boyutlarını ayarla
-        Dimension btnSize = new Dimension(150, 40);
+        Dimension btnSize = new Dimension(140, 40);
         compressButton.setPreferredSize(btnSize);
         decompressButton.setPreferredSize(btnSize);
+        viewTreeButton.setPreferredSize(btnSize);
 
         bottomPanel.add(compressButton);
         bottomPanel.add(decompressButton);
@@ -98,24 +116,16 @@ public class App extends JFrame {
         add(bottomPanel, BorderLayout.SOUTH);
 
         // --- AKSİYONLAR ---
-
-        // Dosya Seçme İşlemi
         browseButton.addActionListener(e -> chooseFile());
-
-        // Sıkıştırma İşlemi
         compressButton.addActionListener(e -> startCompressionTask());
-
-        // Açma İşlemi
         decompressButton.addActionListener(e -> startDecompressionTask());
-
         viewTreeButton.addActionListener(e -> showTreeWindow());
 
-        log("Welcome! Please select a file to start.");
+        log("Welcome! Please select a file and configure settings.");
     }
 
     private void chooseFile() {
         JFileChooser fileChooser = new JFileChooser();
-        // Varsayılan olarak proje klasörünü açsın
         fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
 
         int result = fileChooser.showOpenDialog(this);
@@ -124,12 +134,19 @@ public class App extends JFrame {
             filePathField.setText(selectedFile.getAbsolutePath());
             compressButton.setEnabled(true);
             decompressButton.setEnabled(true);
-            log("File selected: " + selectedFile.getName() + " (" + (selectedFile.length() / 1024) + " KB)");
+            log("File selected: " + selectedFile.getName() + " (" + formatSize(selectedFile.length()) + ")");
         }
     }
 
-    // Arayüz donmasın diye işlemleri ayrı bir Thread içinde yapıyoruz
     private void startCompressionTask() {
+        // Kullanıcının girdiği ayarları al ve uygula
+        int pLength = (Integer) patternLengthSpinner.getValue();
+        int pAmount = (Integer) patternAmountSpinner.getValue();
+
+        // Constant sınıfındaki statik değerleri güncelliyoruz
+        Constant.MAX_PATTERN_LENGTH = pLength;
+        Constant.MAX_PATTERN_AMOUNT = pAmount;
+
         new Thread(() -> {
             try {
                 toggleButtons(false);
@@ -138,11 +155,10 @@ public class App extends JFrame {
 
                 log("------------------------------------------------");
                 log("Starting Compression...");
+                log("Settings -> Length: " + pLength + ", Amount: " + pAmount);
 
-                // Başlangıç zamanını tut (Süre hesabı için)
                 long startTime = System.currentTimeMillis();
 
-                // 1. Aşama: Analiz
                 log("Stage 1: File Analyzing...");
                 FrequencyService frequencyService = new FrequencyService();
                 try (FileInputStream fis = new FileInputStream(inputFile)) {
@@ -151,44 +167,32 @@ public class App extends JFrame {
                 }
 
                 if (frequencyService.getFrequencyMap().isEmpty()) {
-                    throw new RuntimeException("Frequency Map is empty! Input file might be empty.");
+                    throw new RuntimeException("Frequency Map is empty!");
                 }
-                log("Analysis complete. Unique patterns found: " + frequencyService.getFrequencyMap().size());
+                log("Analysis complete. Patterns found: " + frequencyService.getFrequencyMap().size());
 
-                // 2. Aşama: Huffman Ağacı
-                log("Stage 2: Building Huffman Structure...");
+                log("Stage 2: Building Huffman Tree...");
                 HNode root = HuffmanStructure.buildSuperTree(HuffmanStructure.setQueue(frequencyService.getFrequencyMap()));
                 HuffmanStructure.buildDictionary(root, "", frequencyService.getFrequencyMap());
 
-                // Ağacı görselleştirici için kaydet ve butonu aç
                 this.currentRoot = root;
                 SwingUtilities.invokeLater(() -> viewTreeButton.setEnabled(true));
 
-                // 3. Aşama: Sıkıştırma
-                log("Stage 3: Writing to " + new File(outputFile).getName());
+                log("Stage 3: Compressing to " + new File(outputFile).getName());
                 Encoder encoder = new Encoder(root, frequencyService.getFrequencyMap());
                 encoder.compress(inputFile, outputFile);
 
-                // --- SONUÇ RAPORU (YENİ KISIM) ---
                 long endTime = System.currentTimeMillis();
-                long duration = endTime - startTime;
-
                 File originalFile = new File(inputFile);
                 File compressedFile = new File(outputFile);
-
-                long origSize = originalFile.length();
-                long compSize = compressedFile.length();
-
-                // Yüzde hesabı
-                double ratio = 100.0 * (1.0 - ((double) compSize / origSize));
+                double ratio = 100.0 * (1.0 - ((double) compressedFile.length() / originalFile.length()));
 
                 log("------------------------------------------------");
                 log("COMPRESSION SUCCESSFUL!");
-                log(String.format("Time Taken: %.2f seconds", duration / 1000.0));
-                log("Original Size:   " + formatSize(origSize));
-                log("Compressed Size: " + formatSize(compSize));
-                log(String.format("Efficiency:      %.2f%% space saved", ratio));
-                log("Output: " + outputFile);
+                log(String.format("Time Taken: %.2f sec", (endTime - startTime) / 1000.0));
+                log("Original: " + formatSize(originalFile.length()));
+                log("Compressed: " + formatSize(compressedFile.length()));
+                log(String.format("Efficiency: %.2f%% saved", ratio));
 
             } catch (Exception ex) {
                 log("ERROR: " + ex.getMessage());
@@ -200,31 +204,22 @@ public class App extends JFrame {
         }).start();
     }
 
-    private String formatSize(long v) {
-        if (v < 1024) return v + " B";
-        int z = (63 - Long.numberOfLeadingZeros(v)) / 10;
-        return String.format("%.1f %sB", (double)v / (1L << (z*10)), " KMGTPE".charAt(z));
-    }
-
     private void startDecompressionTask() {
         new Thread(() -> {
             try {
                 toggleButtons(false);
                 String inputFile = selectedFile.getAbsolutePath();
-                // .pwha uzantısını kaldırıp .decoded.txt ekleyelim
                 String outputFile = inputFile.endsWith(".pwha")
                         ? inputFile.substring(0, inputFile.length() - 5) + "_decoded.txt"
                         : inputFile + "_decoded.txt";
 
                 log("------------------------------------------------");
                 log("Starting Decompression...");
-                log("Input: " + selectedFile.getName());
-                log("Output Target: " + new File(outputFile).getName());
 
                 Decoder decoder = new Decoder();
                 decoder.decompress(inputFile, outputFile);
 
-                log("SUCCESS! Decompression finished.");
+                log("SUCCESS! File restored to: " + new File(outputFile).getName());
 
             } catch (Exception ex) {
                 log("ERROR: " + ex.getMessage());
@@ -237,10 +232,9 @@ public class App extends JFrame {
     }
 
     private void showTreeWindow() {
-        if(currentRoot == null) return;
-
+        if (currentRoot == null) return;
         JFrame treeFrame = new JFrame("Huffman Tree Visualization");
-        treeFrame.setSize(1200,800);
+        treeFrame.setSize(1200, 800);
         treeFrame.setLocationRelativeTo(this);
         treeFrame.setLayout(new BorderLayout());
 
@@ -248,7 +242,7 @@ public class App extends JFrame {
         JScrollPane scrollPane = new JScrollPane(painter);
 
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton backButton = new JButton("<- Back to Main Tree");
+        JButton backButton = new JButton("← Back to Main Tree");
         backButton.setEnabled(false);
 
         controlPanel.add(backButton);
@@ -260,33 +254,31 @@ public class App extends JFrame {
             backButton.setEnabled(false);
         });
 
-        painter.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (painter.isShowingSubTree()){
-                    backButton.setEnabled(true);
-                }
-            }
-        });
+        painter.setOnSubTreeSelected(() -> backButton.setEnabled(true));
 
         treeFrame.setVisible(true);
     }
 
-    // Helper: Log alanına yazı yaz
     private void log(String message) {
         SwingUtilities.invokeLater(() -> {
             logArea.append(message + "\n");
-            // Otomatik en alta kaydır
             logArea.setCaretPosition(logArea.getDocument().getLength());
         });
     }
 
-    // Helper: İşlem sırasında butonları kilitle
     private void toggleButtons(boolean enabled) {
         SwingUtilities.invokeLater(() -> {
             compressButton.setEnabled(enabled);
             decompressButton.setEnabled(enabled);
             filePathField.setEnabled(enabled);
+            patternLengthSpinner.setEnabled(enabled);
+            patternAmountSpinner.setEnabled(enabled);
         });
+    }
+
+    private String formatSize(long v) {
+        if (v < 1024) return v + " B";
+        int z = (63 - Long.numberOfLeadingZeros(v)) / 10;
+        return String.format("%.1f %sB", (double)v / (1L << (z*10)), " KMGTPE".charAt(z));
     }
 }
