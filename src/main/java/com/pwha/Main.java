@@ -12,8 +12,7 @@ import java.io.IOException;
 
 public class Main {
     public static void main(String[] args) throws IOException, ClassNotFoundException {
-
-        String inputFile = "deneme.txt";
+        String inputFile = "input.txt";
         String outputFile = "encoded_file.pwha";
         String decodedFile = "decoded_file.txt";
 

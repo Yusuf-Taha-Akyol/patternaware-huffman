@@ -34,6 +34,7 @@ public class Decoder {
         BitReader bitReader = new BitReader(fis);
         FileOutputStream fos = new FileOutputStream(outputFile);
 
+        System.out.println("Decompressing starting...");
         decodeContent(bitReader, fos);
 
         fos.close();

@@ -10,11 +10,11 @@ import java.util.PriorityQueue;
 
 public class ContextLeaf extends HNode implements Serializable {
     private final byte data;
-    private HNode subTreeRoot;
+    private transient HNode subTreeRoot;
     private final HashMap<ByteArrayWrapper, Integer> freqMap;
-    private final HashMap<ByteArrayWrapper, String> subDictionary;
-    private PriorityQueue<SimpleLeaf> priorityQueue;
-    private String code;
+    private transient final HashMap<ByteArrayWrapper, String> subDictionary;
+    private transient PriorityQueue<SimpleLeaf> priorityQueue;
+    private transient String code;
     private int kValue;
 
     public ContextLeaf(byte data, int frequency) {
@@ -44,16 +44,17 @@ public class ContextLeaf extends HNode implements Serializable {
         }
         ByteArrayWrapper byteArrayWrapper = new ByteArrayWrapper(pattern);
 
-        if(byteArrayWrapper.length() == 1){
-            freqMap.put(byteArrayWrapper, freqMap.getOrDefault(byteArrayWrapper, 0)+1);
-        }
         if(freqMap.containsKey(byteArrayWrapper)){
             freqMap.put(byteArrayWrapper, freqMap.get(byteArrayWrapper) + 1);
             return;
         }
 
+        if(byteArrayWrapper.length() == 1){
+            freqMap.put(byteArrayWrapper,1);
+        }
+
         if(kValue < Constant.MAX_PATTERN_AMOUNT){
-            freqMap.put(byteArrayWrapper, freqMap.getOrDefault(byteArrayWrapper,1));
+            freqMap.put(byteArrayWrapper, 1);
             kValue++;
             return;
         }
@@ -66,15 +67,15 @@ public class ContextLeaf extends HNode implements Serializable {
         int minFreq = Integer.MAX_VALUE;
 
         for(Map.Entry<ByteArrayWrapper, Integer> entry : freqMap.entrySet()){
-            ByteArrayWrapper key = entry.getKey();
 
-            if(key.data().length == 1){
+            if(entry.getKey().data().length == 1){
                 continue;
             }
 
-            if(entry.getValue() < minFreq){
-                minFreq = entry.getValue();
-                victim = key;
+            int value = entry.getValue();
+            if(value < minFreq){
+                minFreq = value;
+                victim = entry.getKey();
             }
         }
 

@@ -2,6 +2,7 @@ package com.pwha.service;
 
 import com.pwha.Main;
 import com.pwha.model.node.ContextLeaf;
+import com.pwha.util.Constant;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -45,11 +46,12 @@ public class FrequencyService {
 
     private void extractAndAddPatterns(ContextLeaf contextNode, byte[] word){
         for(int start = 1; start <word.length; start++){
-            for(int end = word.length-1; end >= start; end--){
+
+            int maxEnd = Math.min(word.length - 1, start + Constant.MAX_PATTERN_LENGTH -1);
+
+            for(int end = maxEnd; end >= start; end--){
                 byte[] pattern = Arrays.copyOfRange(word, start, end + 1);
-                if(pattern.length > 0){
-                    contextNode.addToFreqMap(pattern);
-                }
+                contextNode.addToFreqMap(pattern);
             }
         }
     }
