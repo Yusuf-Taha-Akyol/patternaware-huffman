@@ -4,6 +4,7 @@ import com.pwha.core.HuffmanStructure;
 import com.pwha.engine.Decoder;
 import com.pwha.engine.Encoder;
 import com.pwha.io.ByteReader;
+import com.pwha.model.node.ContextLeaf;
 import com.pwha.model.node.HNode;
 import com.pwha.service.FrequencyService;
 import com.pwha.util.Constant;
@@ -172,7 +173,15 @@ public class App extends JFrame {
                 if (frequencyService.getFrequencyMap().isEmpty()) {
                     throw new RuntimeException("Frequency Map is empty!");
                 }
-                log("Analysis complete. Patterns: " + frequencyService.getFrequencyMap().size());
+
+                int totalContexts = frequencyService.getFrequencyMap().size();
+                long totalPatterns = 0;
+                for(ContextLeaf leaf : frequencyService.getFrequencyMap().values()) {
+                    totalPatterns += leaf.getPatternCount();
+                }
+                log("Analysis complete.");
+                log(" - Total contexts : " + totalContexts);
+                log(" - Total patterns : " + totalPatterns);
 
                 log("Stage 2: Building Huffman Tree...");
                 HNode root = HuffmanStructure.buildSuperTree(HuffmanStructure.setQueue(frequencyService.getFrequencyMap()));

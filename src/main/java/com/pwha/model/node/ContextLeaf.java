@@ -143,6 +143,10 @@ public class ContextLeaf extends HNode implements Serializable {
         setFrequency(getFrequency() + 1);
     }
 
+    public int getPatternCount() {
+        return freqMap.size();
+    }
+
     @Override
     public boolean isContextLeaf(){
         return true;
