@@ -8,6 +8,7 @@ import com.pwha.util.SeparatorUtils;
 
 import java.io.*;
 import java.util.*;
+import java.util.function.Consumer;
 
 public class Encoder {
     private final HNode root;
@@ -17,29 +18,41 @@ public class Encoder {
         this.root = root;
         this.dictionary = dictionary;
     }
-    public void compress(String inputFile, String outputFile) throws IOException {
+    public void compress(String inputFile, String outputFile, long totalSize, Consumer<Double> onProgress) throws IOException {
         System.out.println("Compressing and File Writing");
 
         try(FileOutputStream fos = new FileOutputStream(outputFile);
             BitWriter bitWriter = new BitWriter(fos)) {
             writeHeader(fos);
-            encodeContent(inputFile, bitWriter);
+            encodeContent(inputFile, bitWriter, totalSize, onProgress);
         }
 
         System.out.println("Compressing complete... " + outputFile);
     }
 
+    public void compress(String inputFile, String outputFile) throws IOException {
+        compress(inputFile, outputFile, 1, null);
+    }
     private void writeHeader(OutputStream outputFile) throws IOException {
         ObjectOutputStream oos = new ObjectOutputStream(outputFile);
         oos.writeObject(this.dictionary);
         oos.flush();
     }
-    private void encodeContent(String inputFile, BitWriter bitWriter) throws IOException {
+    private void encodeContent(String inputFile, BitWriter bitWriter, long totalSize, Consumer<Double> onProgress) throws IOException {
         FileInputStream fis = new FileInputStream(inputFile);
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
         int data;
+        long bytesReadSoFar = 0;
+
         while((data = fis.read()) != -1) {
+            bytesReadSoFar++;
+
+            if(onProgress != null && bytesReadSoFar % 10240 == 0) {
+                double percent = (double) bytesReadSoFar / totalSize * 100;
+                onProgress.accept(percent);
+            }
+
             byte byteValue = (byte) data;
             if (SeparatorUtils.isSeparator(byteValue)) {
                 if(bos.size() > 0){

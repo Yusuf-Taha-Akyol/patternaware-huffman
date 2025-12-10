@@ -8,28 +8,52 @@ import com.pwha.model.node.InternalNode;
 import com.pwha.model.node.SimpleLeaf;
 import com.pwha.util.SeparatorUtils;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.util.HashMap;
+import java.util.function.Consumer;
 
 public class Decoder {
     private HashMap<Byte, ContextLeaf> globalContextMap;
     private HNode globalTreeRoot;
 
-    public void decompress(String compressedFile, String outputFile) throws IOException , ClassNotFoundException {
+    public void decompress(String compressedFile, String outputFile, long totalSize, Consumer<Double> onProgress) throws IOException , ClassNotFoundException {
         System.out.println("Decompressing " + compressedFile + " to " + outputFile);
 
         FileInputStream fis = new FileInputStream(compressedFile);
-
         ObjectInputStream ois = new ObjectInputStream(fis);
 
         this.globalContextMap = (HashMap<Byte, ContextLeaf>) ois.readObject();
 
         System.out.println("Dictionary is downloaded. Huffman Tree is rebuilding...");
-
         rebuildAllTrees();
+
+        InputStream progressStream = new InputStream() {
+            long bytesRead = 0;
+
+            @Override
+            public int read() throws IOException {
+                int b = fis.read();
+                if(b != -1) update();
+                return b;
+            }
+
+            @Override
+            public int read(byte[] b, int off, int len) throws IOException {
+                int n = fis.read(b, off, len);
+                if(n != -1) update(n);
+                return n;
+            }
+
+            private void update() { update(1); }
+
+            private void update(int n) {
+                bytesRead += n;
+                if(onProgress != null && bytesRead % 10240 == 0){
+                    double p = (double) bytesRead / totalSize * 100;
+                    onProgress.accept(p > 100 ? 100 : p);
+                }
+            }
+        };
 
         BitReader bitReader = new BitReader(fis);
         FileOutputStream fos = new FileOutputStream(outputFile);
@@ -42,6 +66,9 @@ public class Decoder {
         System.out.println("Decompressing complete...");
     }
 
+    public void decompress(String compressedFile, String outputFile) throws IOException , ClassNotFoundException {
+        decompress(compressedFile, outputFile, 1, null);
+    }
     private void rebuildAllTrees() {
         for(ContextLeaf contextNode : globalContextMap.values()) {
             contextNode.setSubQueue();

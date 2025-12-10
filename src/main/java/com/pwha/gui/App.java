@@ -22,6 +22,7 @@ public class App extends JFrame {
     private JButton compressButton;
     private JButton decompressButton;
     private JButton viewTreeButton;
+    private JProgressBar progressBar;
     private File selectedFile;
     private HNode currentRoot;
 
@@ -43,11 +44,10 @@ public class App extends JFrame {
     public App() {
         setTitle("Pattern-Aware Huffman Compressor");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(700, 600); // Paneller arttığı için boyutu büyüttük
+        setSize(700, 650);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-        // --- ÜST PANEL (DOSYA SEÇİMİ) ---
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.setBorder(new EmptyBorder(10, 10, 0, 10));
 
@@ -62,23 +62,17 @@ public class App extends JFrame {
 
         add(topPanel, BorderLayout.NORTH);
 
-        // --- AYARLAR PANELİ (YENİ) ---
         JPanel settingsPanel = new JPanel(new GridLayout(1, 4, 10, 10));
         settingsPanel.setBorder(new TitledBorder("Algorithm Settings"));
 
-        // Pattern Length Ayarı
         settingsPanel.add(new JLabel("Max Pattern Length:", SwingConstants.RIGHT));
-        // Varsayılan: 20, Min: 2, Max: 100, Adım: 1
         patternLengthSpinner = new JSpinner(new SpinnerNumberModel(20, 2, 100, 1));
         settingsPanel.add(patternLengthSpinner);
 
-        // Pattern Amount Ayarı
         settingsPanel.add(new JLabel("Max Pattern Amount:", SwingConstants.RIGHT));
-        // Varsayılan: 1000, Min: 100, Max: 100000, Adım: 100
         patternAmountSpinner = new JSpinner(new SpinnerNumberModel(1000, 100, 100000, 100));
         settingsPanel.add(patternAmountSpinner);
 
-        // --- ORTA PANEL (LOG EKRANI + AYARLAR) ---
         JPanel centerContainer = new JPanel(new BorderLayout(10, 10));
         centerContainer.setBorder(new EmptyBorder(10, 10, 10, 10));
 
@@ -92,9 +86,17 @@ public class App extends JFrame {
 
         centerContainer.add(scrollPane, BorderLayout.CENTER);
 
+        JPanel progressPanel = new JPanel(new BorderLayout());
+        progressBar = new JProgressBar(0, 100);
+        progressBar.setStringPainted(true); // Yüzdeyi yazı olarak göster
+        progressBar.setFont(new Font("Arial", Font.BOLD, 12));
+        progressPanel.add(new JLabel("Progress: "), BorderLayout.WEST);
+        progressPanel.add(progressBar, BorderLayout.CENTER);
+
+        centerContainer.add(progressPanel, BorderLayout.SOUTH);
+
         add(centerContainer, BorderLayout.CENTER);
 
-        // --- ALT PANEL (BUTONLAR) ---
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         compressButton = new JButton("Compress File");
         decompressButton = new JButton("Decompress File");
@@ -115,13 +117,16 @@ public class App extends JFrame {
 
         add(bottomPanel, BorderLayout.SOUTH);
 
-        // --- AKSİYONLAR ---
         browseButton.addActionListener(e -> chooseFile());
         compressButton.addActionListener(e -> startCompressionTask());
         decompressButton.addActionListener(e -> startDecompressionTask());
         viewTreeButton.addActionListener(e -> showTreeWindow());
 
         log("Welcome! Please select a file and configure settings.");
+    }
+
+    private void updateProgress(double percent) {
+        SwingUtilities.invokeLater(() -> progressBar.setValue((int) percent));
     }
 
     private void chooseFile() {
@@ -134,42 +139,40 @@ public class App extends JFrame {
             filePathField.setText(selectedFile.getAbsolutePath());
             compressButton.setEnabled(true);
             decompressButton.setEnabled(true);
+            progressBar.setValue(0);
             log("File selected: " + selectedFile.getName() + " (" + formatSize(selectedFile.length()) + ")");
         }
     }
 
     private void startCompressionTask() {
-        // Kullanıcının girdiği ayarları al ve uygula
         int pLength = (Integer) patternLengthSpinner.getValue();
         int pAmount = (Integer) patternAmountSpinner.getValue();
-
-        // Constant sınıfındaki statik değerleri güncelliyoruz
         Constant.MAX_PATTERN_LENGTH = pLength;
         Constant.MAX_PATTERN_AMOUNT = pAmount;
 
         new Thread(() -> {
             try {
                 toggleButtons(false);
+                updateProgress(0);
                 String inputFile = selectedFile.getAbsolutePath();
                 String outputFile = selectedFile.getParent() + File.separator + "encoded_file.pwha";
+                long totalSize = selectedFile.length();
 
                 log("------------------------------------------------");
                 log("Starting Compression...");
-                log("Settings -> Length: " + pLength + ", Amount: " + pAmount);
-
                 long startTime = System.currentTimeMillis();
 
                 log("Stage 1: File Analyzing...");
                 FrequencyService frequencyService = new FrequencyService();
                 try (FileInputStream fis = new FileInputStream(inputFile)) {
                     ByteReader reader = new ByteReader(frequencyService, fis);
-                    reader.collectWords();
+                    reader.collectWords(totalSize, progress -> updateProgress(progress * 0.5));
                 }
 
                 if (frequencyService.getFrequencyMap().isEmpty()) {
                     throw new RuntimeException("Frequency Map is empty!");
                 }
-                log("Analysis complete. Patterns found: " + frequencyService.getFrequencyMap().size());
+                log("Analysis complete. Patterns: " + frequencyService.getFrequencyMap().size());
 
                 log("Stage 2: Building Huffman Tree...");
                 HNode root = HuffmanStructure.buildSuperTree(HuffmanStructure.setQueue(frequencyService.getFrequencyMap()));
@@ -178,10 +181,11 @@ public class App extends JFrame {
                 this.currentRoot = root;
                 SwingUtilities.invokeLater(() -> viewTreeButton.setEnabled(true));
 
-                log("Stage 3: Compressing to " + new File(outputFile).getName());
+                log("Stage 3: Compressing...");
                 Encoder encoder = new Encoder(root, frequencyService.getFrequencyMap());
-                encoder.compress(inputFile, outputFile);
+                encoder.compress(inputFile, outputFile, totalSize, progress -> updateProgress(50 + (progress * 0.5)));
 
+                updateProgress(100);
                 long endTime = System.currentTimeMillis();
                 File originalFile = new File(inputFile);
                 File compressedFile = new File(outputFile);
@@ -208,17 +212,20 @@ public class App extends JFrame {
         new Thread(() -> {
             try {
                 toggleButtons(false);
+                updateProgress(0);
                 String inputFile = selectedFile.getAbsolutePath();
                 String outputFile = inputFile.endsWith(".pwha")
                         ? inputFile.substring(0, inputFile.length() - 5) + "_decoded.txt"
                         : inputFile + "_decoded.txt";
+                long totalSize = selectedFile.length();
 
                 log("------------------------------------------------");
                 log("Starting Decompression...");
 
                 Decoder decoder = new Decoder();
-                decoder.decompress(inputFile, outputFile);
+                decoder.decompress(inputFile, outputFile, totalSize, this::updateProgress);
 
+                updateProgress(100);
                 log("SUCCESS! File restored to: " + new File(outputFile).getName());
 
             } catch (Exception ex) {
