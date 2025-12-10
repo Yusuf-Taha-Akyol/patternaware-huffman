@@ -13,6 +13,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 
@@ -165,8 +166,10 @@ public class App extends JFrame {
 
                 log("Stage 1: File Analyzing...");
                 FrequencyService frequencyService = new FrequencyService();
-                try (FileInputStream fis = new FileInputStream(inputFile)) {
-                    ByteReader reader = new ByteReader(frequencyService, fis);
+                try (FileInputStream fis = new FileInputStream(inputFile);
+                     BufferedInputStream bis = new BufferedInputStream(fis)) {
+
+                    ByteReader reader = new ByteReader(frequencyService, bis);
                     reader.collectWords(totalSize, progress -> updateProgress(progress * 0.5));
                 }
 

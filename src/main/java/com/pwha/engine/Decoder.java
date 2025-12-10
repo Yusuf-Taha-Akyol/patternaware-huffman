@@ -20,7 +20,10 @@ public class Decoder {
         System.out.println("Decompressing " + compressedFile + " to " + outputFile);
 
         FileInputStream fis = new FileInputStream(compressedFile);
-        ObjectInputStream ois = new ObjectInputStream(fis);
+
+        BufferedInputStream bis = new BufferedInputStream(fis);
+
+        ObjectInputStream ois = new ObjectInputStream(bis);
 
         this.globalContextMap = (HashMap<Byte, ContextLeaf>) ois.readObject();
 
@@ -32,14 +35,14 @@ public class Decoder {
 
             @Override
             public int read() throws IOException {
-                int b = fis.read();
+                int b = bis.read();
                 if(b != -1) update();
                 return b;
             }
 
             @Override
             public int read(byte[] b, int off, int len) throws IOException {
-                int n = fis.read(b, off, len);
+                int n = bis.read(b, off, len);
                 if(n != -1) update(n);
                 return n;
             }
@@ -55,7 +58,7 @@ public class Decoder {
             }
         };
 
-        BitReader bitReader = new BitReader(fis);
+        BitReader bitReader = new BitReader(progressStream);
         FileOutputStream fos = new FileOutputStream(outputFile);
 
         System.out.println("Decompressing starting...");

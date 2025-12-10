@@ -42,20 +42,22 @@ public class ContextLeaf extends HNode implements Serializable {
         if(pattern.length > Constant.MAX_PATTERN_LENGTH){
             return;
         }
+
         ByteArrayWrapper byteArrayWrapper = new ByteArrayWrapper(pattern);
 
-        if(freqMap.containsKey(byteArrayWrapper)){
-            freqMap.put(byteArrayWrapper, freqMap.get(byteArrayWrapper) + 1);
+        Integer count = freqMap.get(byteArrayWrapper);
+        if(count != null){
+            freqMap.put(byteArrayWrapper, count + 1);
             return;
         }
 
         if(byteArrayWrapper.length() == 1){
-            freqMap.put(byteArrayWrapper,1);
+            freqMap.put(byteArrayWrapper, 1);
+            return;
         }
 
-        if(kValue < Constant.MAX_PATTERN_AMOUNT){
+        if(freqMap.size() < Constant.MAX_PATTERN_AMOUNT){
             freqMap.put(byteArrayWrapper, 1);
-            kValue++;
             return;
         }
 
@@ -66,17 +68,29 @@ public class ContextLeaf extends HNode implements Serializable {
         ByteArrayWrapper victim = null;
         int minFreq = Integer.MAX_VALUE;
 
+
+        int sampleSize = 100;
+        int checked = 0;
+
         for(Map.Entry<ByteArrayWrapper, Integer> entry : freqMap.entrySet()){
 
-            if(entry.getKey().data().length == 1){
-                continue;
+            if(entry.getKey().data().length == 1) continue;
+
+            int val = entry.getValue();
+
+            if(val == 1){
+                victim = entry.getKey();
+                minFreq = val;
+                break;
             }
 
-            int value = entry.getValue();
-            if(value < minFreq){
-                minFreq = value;
+            if(val < minFreq){
+                minFreq = val;
                 victim = entry.getKey();
             }
+
+            checked++;
+            if(checked >= sampleSize) break;
         }
 
         if(victim != null){

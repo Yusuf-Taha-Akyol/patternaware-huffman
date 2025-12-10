@@ -39,54 +39,58 @@ public class Encoder {
         oos.flush();
     }
     private void encodeContent(String inputFile, BitWriter bitWriter, long totalSize, Consumer<Double> onProgress) throws IOException {
-        FileInputStream fis = new FileInputStream(inputFile);
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
-        int data;
-        long bytesReadSoFar = 0;
+        try(FileInputStream fis = new FileInputStream(inputFile);
+            BufferedInputStream bis = new BufferedInputStream(fis)){
 
-        while((data = fis.read()) != -1) {
-            bytesReadSoFar++;
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
-            if(onProgress != null && bytesReadSoFar % 10240 == 0) {
-                double percent = (double) bytesReadSoFar / totalSize * 100;
-                onProgress.accept(percent);
-            }
+            int data;
+            long bytesReadSoFar = 0;
 
-            byte byteValue = (byte) data;
-            if (SeparatorUtils.isSeparator(byteValue)) {
-                if(bos.size() > 0){
-                    encodeWord(bos.toByteArray(), bitWriter);
+            while((data = bis.read()) != -1) {
+                bytesReadSoFar++;
+
+                if(onProgress != null && bytesReadSoFar % 10240 == 0) {
+                    double percent = (double) bytesReadSoFar / totalSize * 100;
+                    onProgress.accept(percent);
                 }
 
-                if(bos.size() > 0){
-                    byte contextByte = bos.toByteArray()[0];
-                    ContextLeaf contextLeaf = this.dictionary.get(contextByte);
-
-                    String localSepCode = null;
-                    if(contextLeaf != null) {
-                        localSepCode = contextLeaf.getSubCode(new ByteArrayWrapper(new byte[]{byteValue}));
+                byte byteValue = (byte) data;
+                if (SeparatorUtils.isSeparator(byteValue)) {
+                    if(bos.size() > 0){
+                        encodeWord(bos.toByteArray(), bitWriter);
                     }
 
-                    if(localSepCode != null){
-                        bitWriter.writeBits(localSepCode);
-                    }else{
+                    if(bos.size() > 0){
+                        byte contextByte = bos.toByteArray()[0];
+                        ContextLeaf contextLeaf = this.dictionary.get(contextByte);
+
+                        String localSepCode = null;
+                        if(contextLeaf != null) {
+                            localSepCode = contextLeaf.getSubCode(new ByteArrayWrapper(new byte[]{byteValue}));
+                        }
+
+                        if(localSepCode != null){
+                            bitWriter.writeBits(localSepCode);
+                        }else{
+                            encodeGlobalSeparator(byteValue, bitWriter);
+                        }
+                    } else {
                         encodeGlobalSeparator(byteValue, bitWriter);
                     }
-                } else {
-                    encodeGlobalSeparator(byteValue, bitWriter);
+                    bos.reset();
+                }else{
+                    bos.write(byteValue);
                 }
-                bos.reset();
-            }else{
-                bos.write(byteValue);
             }
+
+            if(bos.size() > 0){
+                encodeWord(bos.toByteArray(), bitWriter);
+            }
+
         }
 
-        if(bos.size() > 0){
-            encodeWord(bos.toByteArray(), bitWriter);
-        }
-
-        fis.close();
     }
 
     private void encodeWord(byte[] word, BitWriter bitWriter) throws IOException {
