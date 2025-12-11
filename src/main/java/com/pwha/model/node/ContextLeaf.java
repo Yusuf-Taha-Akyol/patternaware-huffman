@@ -2,6 +2,7 @@ package com.pwha.model.node;
 
 import com.pwha.model.ByteArrayWrapper;
 import com.pwha.util.Constant;
+import com.pwha.util.CustomPriorityQueue;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -13,7 +14,7 @@ public class ContextLeaf extends HNode implements Serializable {
     private transient HNode subTreeRoot;
     private final HashMap<ByteArrayWrapper, Integer> freqMap;
     private transient final HashMap<ByteArrayWrapper, String> subDictionary;
-    private transient PriorityQueue<SimpleLeaf> priorityQueue;
+    private transient CustomPriorityQueue<SimpleLeaf> priorityQueue;
     private transient String code;
     private int kValue;
 
@@ -22,7 +23,7 @@ public class ContextLeaf extends HNode implements Serializable {
         this.data = data;
         this.freqMap = new HashMap<>();
         this.subDictionary = new HashMap<>();
-        this.priorityQueue = new PriorityQueue<>();
+        this.priorityQueue = new CustomPriorityQueue<SimpleLeaf>();
     }
 
     public byte getData(){
@@ -105,16 +106,20 @@ public class ContextLeaf extends HNode implements Serializable {
 
     }
 
-    public PriorityQueue<SimpleLeaf> getSubQueue(){
+    public CustomPriorityQueue<SimpleLeaf> getSubQueue(){
         return this.priorityQueue;
     }
 
     public void setSubQueue(){
-        this.priorityQueue = new PriorityQueue<>();
+        this.priorityQueue = new CustomPriorityQueue<>();
         for(ByteArrayWrapper key : freqMap.keySet()){
             this.priorityQueue.add(new SimpleLeaf(key, freqMap.get(key)));
         }
 
+    }
+
+    public void clearSubQueue(){
+        this.priorityQueue = null;
     }
 
     public String getCode() {
