@@ -59,12 +59,14 @@ public class Decoder {
         };
 
         BitReader bitReader = new BitReader(progressStream);
+
         FileOutputStream fos = new FileOutputStream(outputFile);
+        BufferedOutputStream bos = new BufferedOutputStream(fos);
 
         System.out.println("Decompressing starting...");
-        decodeContent(bitReader, fos);
+        decodeContent(bitReader, bos);
 
-        fos.close();
+        bos.close();
         bitReader.close();
         System.out.println("Decompressing complete...");
     }
@@ -82,7 +84,7 @@ public class Decoder {
         this.globalTreeRoot = HuffmanStructure.buildSuperTree(globalQueue);
     }
 
-    private void decodeContent(BitReader bitReader, FileOutputStream fos) throws IOException {
+    private void decodeContent(BitReader bitReader, OutputStream os) throws IOException {
         ContextLeaf currentContext = null;
         while(true) {
             HNode currentNode;
@@ -108,7 +110,7 @@ public class Decoder {
             if(currentNode instanceof ContextLeaf) {
                 ContextLeaf leaf = (ContextLeaf) currentNode;
                 byte data = leaf.getData();
-                fos.write(data);
+                os.write(data);
 
                 if(SeparatorUtils.isSeparator(data)){
                     currentContext = null;
@@ -118,7 +120,7 @@ public class Decoder {
             }else if(currentNode instanceof SimpleLeaf) {
                 SimpleLeaf leaf = (SimpleLeaf) currentNode;
                 byte[] data = leaf.getPattern().data();
-                fos.write(data);
+                os.write(data);
 
                 if(data.length == 1 && SeparatorUtils.isSeparator(data[0])){
                     currentContext = null;

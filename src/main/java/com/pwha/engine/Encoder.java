@@ -22,7 +22,9 @@ public class Encoder {
         System.out.println("Compressing and File Writing");
 
         try(FileOutputStream fos = new FileOutputStream(outputFile);
-            BitWriter bitWriter = new BitWriter(fos)) {
+            BufferedOutputStream bos = new BufferedOutputStream(fos);
+            BitWriter bitWriter = new BitWriter(bos)) {
+
             writeHeader(fos);
             encodeContent(inputFile, bitWriter, totalSize, onProgress);
         }
