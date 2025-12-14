@@ -72,7 +72,7 @@ public class App extends JFrame {
         settingsPanel.add(patternLengthSpinner);
 
         settingsPanel.add(new JLabel("Max Pattern Amount:", SwingConstants.RIGHT));
-        patternAmountSpinner = new JSpinner(new SpinnerNumberModel(1000, 100, 100000, 100));
+        patternAmountSpinner = new JSpinner(new SpinnerNumberModel(1000, 1, 100000, 10));
         settingsPanel.add(patternAmountSpinner);
 
         JPanel centerContainer = new JPanel(new BorderLayout(10, 10));
@@ -260,11 +260,30 @@ public class App extends JFrame {
         HuffmanTreePainter painter = new HuffmanTreePainter(currentRoot);
         JScrollPane scrollPane = new JScrollPane(painter);
 
+        // Kontrol Paneli
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        // Geri Butonu
         JButton backButton = new JButton("← Back to Main Tree");
         backButton.setEnabled(false);
 
+        // YENİ: Zoom Kontrolü (Sayı Girişi)
+        JLabel zoomLabel = new JLabel("Zoom Level:");
+        // Başlangıç: 1.0, Min: 0.2, Max: 3.0, Adım: 0.1
+        JSpinner zoomSpinner = new JSpinner(new SpinnerNumberModel(1.0, painter.MIN_ZOOM, painter.MAX_ZOOM, 0.1));
+
+        // Sayı değiştikçe zoom'u güncelle
+        zoomSpinner.addChangeListener(e -> {
+            double val = (Double) zoomSpinner.getValue();
+            painter.setScaleFactor(val);
+        });
+
+        // Bileşenleri panele ekle
         controlPanel.add(backButton);
+        controlPanel.add(Box.createHorizontalStrut(20)); // Biraz boşluk bırak
+        controlPanel.add(zoomLabel);
+        controlPanel.add(zoomSpinner);
+
         treeFrame.add(controlPanel, BorderLayout.NORTH);
         treeFrame.add(scrollPane, BorderLayout.CENTER);
 

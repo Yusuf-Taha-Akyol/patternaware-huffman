@@ -11,8 +11,8 @@ import java.util.PriorityQueue;
 
 public class ContextLeaf extends HNode implements Serializable {
     private final byte data;
-    private transient HNode subTreeRoot;
     private final HashMap<ByteArrayWrapper, Integer> freqMap;
+    private transient HNode subTreeRoot;
     private transient final HashMap<ByteArrayWrapper, String> subDictionary;
     private transient CustomPriorityQueue<SimpleLeaf> priorityQueue;
     private transient String code;
