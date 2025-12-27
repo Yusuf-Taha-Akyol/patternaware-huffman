@@ -30,7 +30,6 @@ It constructs a **Two-Layered Tree Structure**:
 2.  **Sub-Trees:** Each context has its own Huffman Tree optimized for patterns that frequently follow it.
 
 This approach allows for higher compression ratios on text-heavy data by encoding entire words or frequent syllables as single tokens.
-
 ---
 
 ## 🚀 Key Features
@@ -75,7 +74,6 @@ Instead of a single giant Huffman tree, PWHA uses a hierarchical model:
 
 ## 📂 Project Structure
 
-```bash
 src/main/java/com/pwha/
 ├── core/           # Core Algorithm Logic
 │   └── HuffmanStructure.java  # Tree building logic
@@ -130,8 +128,9 @@ Here we compare the final compressed sizes. Lower is better.
 | 100 MB       | 52.89 MB               | **43.00 MB** | **PWHA wins (-9.89 MB)** |
 | 250 MB       | 132.25 MB              | **105.50 MB** | **PWHA wins (-26.75 MB)** |
 | 500 MB       | ~240.00 MB             | **209.20 MB** | **PWHA wins (~30.8 MB)** |
+| 1.0 GB       | ~523.00 MB             | **426.80 MB** | **PWHA wins (~96.2 MB)** |
 
---
+---
 
 ## 📸 Screenshots
 
@@ -140,7 +139,7 @@ The application features a user-friendly Swing interface for configuring algorit
 
 | **Initial State** | **Processing & Results** |
 |:---:|:---:|
-| ![Main GUI](image/main-gui.png)<br>_Clean interface ready for file selection and configuration_ | ![Results](image/compression-result.png)<br>_Real-time logs showing compression ratio, time, and statistics_ |
+| ![Main GUI](docs/images/main-gui.png)<br>_Clean interface ready for file selection and configuration_ | ![Results](docs/images/compression-result.png)<br>_Real-time logs showing compression ratio, time, and statistics_ |
 
 ---
 
@@ -149,4 +148,12 @@ A custom-built graph visualizer demonstrates the **Context-Aware** architecture.
 
 | **Layer 1: Super-Tree (Contexts)** | **Layer 2: Sub-Tree (Context 'x')** |
 |:---:|:---:|
-| ![Super Tree](image/super-tree-view.png)<br>_The global tree organizing "Context" characters (e.g., first letters)_ | ![Sub Tree](image/x-sub-tree-view.png)<br>_The specialized Huffman tree for patterns belonging specifically to context 'x'_ |
+| ![Super Tree](docs/images/super-tree-view.png)<br>_The global tree organizing "Context" characters (e.g., first letters)_ | ![Sub Tree](docs/images/x-sub-tree-view.png)<br>_The specialized Huffman tree for patterns belonging specifically to context 'x'_ |
+
+---
+
+## 👨‍💻 Author
+
+**Yusuf Taha Akyol**
+* Computer Engineering Student
+* Project developed to explore advanced data structures and compression algorithms.
