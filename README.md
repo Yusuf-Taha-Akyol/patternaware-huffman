@@ -15,8 +15,7 @@ This project demonstrates a deep understanding of data structures and algorithms
 - [Key Features](#-key-features)
 - [Architecture & Algorithms](#-architecture--algorithms)
 - [Project Structure](#-project-structure)
-- [Performance & Results](#-performance--results)
-- [Getting Started](#-getting-started)
+- [Performance & Benchmarks](#-performance--benchmarks)
 - [Screenshots](#-screenshots)
 
 ---
@@ -74,26 +73,26 @@ Instead of a single giant Huffman tree, PWHA uses a hierarchical model:
 
 ## 📂 Project Structure
 
-src/main/java/com/pwha/
-├── core/           # Core Algorithm Logic
-│   └── HuffmanStructure.java  # Tree building logic
-├── engine/         # Compression Engine
-│   ├── Encoder.java           # Greedy matching & writing
-│   └── Decoder.java           # Tree traversal & state machine
-├── io/             # Low-Level I/O
-│   ├── BitWriter.java         # Bit packing
-│   ├── BitReader.java         # Bit unpacking
-│   └── ByteReader.java        # Word segmentation
-├── model/          # Data Models
-│   ├── node/                  # Tree Nodes (ContextLeaf, SimpleLeaf, InternalNode)
-│   └── ByteArrayWrapper.java  # Byte array handling
-├── service/        # Business Logic
-│   └── FrequencyService.java  # Pattern mining & Analysis
-├── util/           # Utilities
-│   └── CustomPriorityQueue.java # FROM SCRATCH Heap Implementation
-└── gui/            # User Interface
-    ├── App.java               # Main Swing Application
-    └── HuffmanTreePainter.java # Tree Visualization Component
+      src/main/java/com/pwha/
+          ├── core/           # Core Algorithm Logic
+          │   └── HuffmanStructure.java  # Tree building logic
+          ├── engine/         # Compression Engine
+          │   ├── Encoder.java           # Greedy matching & writing
+          │   └── Decoder.java           # Tree traversal & state machine
+          ├── io/             # Low-Level I/O
+          │   ├── BitWriter.java         # Bit packing
+          │   ├── BitReader.java         # Bit unpacking
+          │   └── ByteReader.java        # Word segmentation
+          ├── model/          # Data Models
+          │   ├── node/                  # Tree Nodes (ContextLeaf, SimpleLeaf, InternalNode)
+          │   └── ByteArrayWrapper.java  # Byte array handling
+          ├── service/        # Business Logic
+          │   └── FrequencyService.java  # Pattern mining & Analysis
+          ├── util/           # Utilities
+          │   └── CustomPriorityQueue.java # FROM SCRATCH Heap Implementation
+          └── gui/            # User Interface
+              ├── App.java               # Main Swing Application
+              └── HuffmanTreePainter.java # Tree Visualization Component
 
 ---
 
