@@ -17,24 +17,39 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 
+/**
+ * Main Entry Point and GUI for the Pattern-Aware Huffman Compressor.
+ * <p>
+ * This class extends JFrame to provide a user-friendly Swing interface.
+ * It handles file selection, parameter configuration (pattern length/amount),
+ * and orchestrates the Compression and Decompression tasks on background threads.
+ */
 public class App extends JFrame {
 
+    // GUI Components
     private JTextField filePathField;
     private JTextArea logArea;
     private JButton compressButton;
     private JButton decompressButton;
     private JButton viewTreeButton;
     private JProgressBar progressBar;
-    private File selectedFile;
-    private HNode currentRoot;
 
-    // Ayar bileşenleri
+    // Application State
+    private File selectedFile;
+    private HNode currentRoot; // Stores the root of the generated Huffman Tree for visualization
+
+    // Settings Components
     private JSpinner patternLengthSpinner;
     private JSpinner patternAmountSpinner;
 
+    /**
+     * Main method to launch the application.
+     * Runs the GUI construction on the Event Dispatch Thread (EDT).
+     */
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
+                // Set the Look and Feel to match the operating system
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             } catch (Exception e) {
                 e.printStackTrace();
@@ -43,13 +58,17 @@ public class App extends JFrame {
         });
     }
 
+    /**
+     * Constructor: Initializes the GUI layout and components.
+     */
     public App() {
         setTitle("Pattern-Aware Huffman Compressor");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(700, 650);
-        setLocationRelativeTo(null);
+        setLocationRelativeTo(null); // Center on screen
         setLayout(new BorderLayout(10, 10));
 
+        // --- Top Panel: File Selection ---
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.setBorder(new EmptyBorder(10, 10, 0, 10));
 
@@ -64,17 +83,21 @@ public class App extends JFrame {
 
         add(topPanel, BorderLayout.NORTH);
 
+        // --- Settings Panel: Algorithm Configuration ---
         JPanel settingsPanel = new JPanel(new GridLayout(1, 4, 10, 10));
         settingsPanel.setBorder(new TitledBorder("Algorithm Settings"));
 
+        // Spinner for MAX_PATTERN_LENGTH
         settingsPanel.add(new JLabel("Max Pattern Length:", SwingConstants.RIGHT));
         patternLengthSpinner = new JSpinner(new SpinnerNumberModel(20, 2, 100, 1));
         settingsPanel.add(patternLengthSpinner);
 
+        // Spinner for MAX_PATTERN_AMOUNT
         settingsPanel.add(new JLabel("Max Pattern Amount:", SwingConstants.RIGHT));
         patternAmountSpinner = new JSpinner(new SpinnerNumberModel(1000, 1, 100000, 10));
         settingsPanel.add(patternAmountSpinner);
 
+        // --- Center Panel: Logs and Progress ---
         JPanel centerContainer = new JPanel(new BorderLayout(10, 10));
         centerContainer.setBorder(new EmptyBorder(10, 10, 10, 10));
 
@@ -88,9 +111,10 @@ public class App extends JFrame {
 
         centerContainer.add(scrollPane, BorderLayout.CENTER);
 
+        // Progress Bar Panel
         JPanel progressPanel = new JPanel(new BorderLayout());
         progressBar = new JProgressBar(0, 100);
-        progressBar.setStringPainted(true); // Yüzdeyi yazı olarak göster
+        progressBar.setStringPainted(true); // Show percentage text
         progressBar.setFont(new Font("Arial", Font.BOLD, 12));
         progressPanel.add(new JLabel("Progress: "), BorderLayout.WEST);
         progressPanel.add(progressBar, BorderLayout.CENTER);
@@ -99,11 +123,13 @@ public class App extends JFrame {
 
         add(centerContainer, BorderLayout.CENTER);
 
+        // --- Bottom Panel: Action Buttons ---
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         compressButton = new JButton("Compress File");
         decompressButton = new JButton("Decompress File");
         viewTreeButton = new JButton("View Tree");
 
+        // Disable buttons until a file is selected
         compressButton.setEnabled(false);
         decompressButton.setEnabled(false);
         viewTreeButton.setEnabled(false);
@@ -119,6 +145,7 @@ public class App extends JFrame {
 
         add(bottomPanel, BorderLayout.SOUTH);
 
+        // Event Listeners
         browseButton.addActionListener(e -> chooseFile());
         compressButton.addActionListener(e -> startCompressionTask());
         decompressButton.addActionListener(e -> startDecompressionTask());
@@ -127,10 +154,16 @@ public class App extends JFrame {
         log("Welcome! Please select a file and configure settings.");
     }
 
+    /**
+     * Updates the progress bar on the Event Dispatch Thread.
+     */
     private void updateProgress(double percent) {
         SwingUtilities.invokeLater(() -> progressBar.setValue((int) percent));
     }
 
+    /**
+     * Opens a file chooser dialog to select the input file.
+     */
     private void chooseFile() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
@@ -146,7 +179,12 @@ public class App extends JFrame {
         }
     }
 
+    /**
+     * Starts the Compression process in a background thread.
+     * Flow: Analysis -> Tree Building -> Compression.
+     */
     private void startCompressionTask() {
+        // Apply settings from GUI
         int pLength = (Integer) patternLengthSpinner.getValue();
         int pAmount = (Integer) patternAmountSpinner.getValue();
         Constant.MAX_PATTERN_LENGTH = pLength;
@@ -164,12 +202,14 @@ public class App extends JFrame {
                 log("Starting Compression...");
                 long startTime = System.currentTimeMillis();
 
+                // Phase 1: Analysis (Pattern Mining)
                 log("Stage 1: File Analyzing...");
                 FrequencyService frequencyService = new FrequencyService();
                 try (FileInputStream fis = new FileInputStream(inputFile);
                      BufferedInputStream bis = new BufferedInputStream(fis)) {
 
                     ByteReader reader = new ByteReader(frequencyService, bis);
+                    // Update progress up to 50% during analysis
                     reader.collectWords(totalSize, progress -> updateProgress(progress * 0.5));
                 }
 
@@ -177,6 +217,7 @@ public class App extends JFrame {
                     throw new RuntimeException("Frequency Map is empty!");
                 }
 
+                // Log statistics
                 int totalContexts = frequencyService.getFrequencyMap().size();
                 long totalPatterns = 0;
                 for(ContextLeaf leaf : frequencyService.getFrequencyMap().values()) {
@@ -186,15 +227,19 @@ public class App extends JFrame {
                 log(" - Total contexts : " + totalContexts);
                 log(" - Total patterns : " + totalPatterns);
 
+                // Phase 2: Huffman Tree Construction
                 log("Stage 2: Building Huffman Tree...");
                 HNode root = HuffmanStructure.buildSuperTree(HuffmanStructure.setQueue(frequencyService.getFrequencyMap()));
                 HuffmanStructure.buildDictionary(root, "", frequencyService.getFrequencyMap());
 
+                // Enable Tree Visualization
                 this.currentRoot = root;
                 SwingUtilities.invokeLater(() -> viewTreeButton.setEnabled(true));
 
+                // Phase 3: Encoding (Writing to file)
                 log("Stage 3: Compressing...");
                 Encoder encoder = new Encoder(root, frequencyService.getFrequencyMap());
+                // Update progress from 50% to 100% during encoding
                 encoder.compress(inputFile, outputFile, totalSize, progress -> updateProgress(50 + (progress * 0.5)));
 
                 updateProgress(100);
@@ -203,6 +248,7 @@ public class App extends JFrame {
                 File compressedFile = new File(outputFile);
                 double ratio = 100.0 * (1.0 - ((double) compressedFile.length() / originalFile.length()));
 
+                // Summary Log
                 log("------------------------------------------------");
                 log("COMPRESSION SUCCESSFUL!");
                 log(String.format("Time Taken: %.2f sec", (endTime - startTime) / 1000.0));
@@ -220,12 +266,16 @@ public class App extends JFrame {
         }).start();
     }
 
+    /**
+     * Starts the Decompression process in a background thread.
+     */
     private void startDecompressionTask() {
         new Thread(() -> {
             try {
                 toggleButtons(false);
                 updateProgress(0);
                 String inputFile = selectedFile.getAbsolutePath();
+                // Determine output filename
                 String outputFile = inputFile.endsWith(".pwha")
                         ? inputFile.substring(0, inputFile.length() - 5) + "_decoded.txt"
                         : inputFile + "_decoded.txt";
@@ -250,6 +300,10 @@ public class App extends JFrame {
         }).start();
     }
 
+    /**
+     * Opens the visual Tree Viewer window.
+     * Displays the generated Huffman Tree and allows zooming/navigation.
+     */
     private void showTreeWindow() {
         if (currentRoot == null) return;
         JFrame treeFrame = new JFrame("Huffman Tree Visualization");
@@ -260,50 +314,58 @@ public class App extends JFrame {
         HuffmanTreePainter painter = new HuffmanTreePainter(currentRoot);
         JScrollPane scrollPane = new JScrollPane(painter);
 
-        // Kontrol Paneli
+        // Control Panel
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-        // Geri Butonu
+        // Back Button (for navigating out of sub-trees)
         JButton backButton = new JButton("← Back to Main Tree");
         backButton.setEnabled(false);
 
-        // YENİ: Zoom Kontrolü (Sayı Girişi)
+        // Zoom Controls
         JLabel zoomLabel = new JLabel("Zoom Level:");
-        // Başlangıç: 1.0, Min: 0.2, Max: 3.0, Adım: 0.1
+        // Start: 1.0, Min: 0.2, Max: 3.0, Step: 0.1
         JSpinner zoomSpinner = new JSpinner(new SpinnerNumberModel(1.0, painter.MIN_ZOOM, painter.MAX_ZOOM, 0.1));
 
-        // Sayı değiştikçe zoom'u güncelle
+        // Update zoom when spinner changes
         zoomSpinner.addChangeListener(e -> {
             double val = (Double) zoomSpinner.getValue();
             painter.setScaleFactor(val);
         });
 
-        // Bileşenleri panele ekle
+        // Add components to panel
         controlPanel.add(backButton);
-        controlPanel.add(Box.createHorizontalStrut(20)); // Biraz boşluk bırak
+        controlPanel.add(Box.createHorizontalStrut(20)); // Spacer
         controlPanel.add(zoomLabel);
         controlPanel.add(zoomSpinner);
 
         treeFrame.add(controlPanel, BorderLayout.NORTH);
         treeFrame.add(scrollPane, BorderLayout.CENTER);
 
+        // Reset to global tree view
         backButton.addActionListener(e -> {
             painter.resetToGlobal();
             backButton.setEnabled(false);
         });
 
+        // Enable back button when user dives into a sub-tree
         painter.setOnSubTreeSelected(() -> backButton.setEnabled(true));
 
         treeFrame.setVisible(true);
     }
 
+    /**
+     * Helper method to append messages to the log area safely on the EDT.
+     */
     private void log(String message) {
         SwingUtilities.invokeLater(() -> {
             logArea.append(message + "\n");
-            logArea.setCaretPosition(logArea.getDocument().getLength());
+            logArea.setCaretPosition(logArea.getDocument().getLength()); // Auto-scroll
         });
     }
 
+    /**
+     * Helper method to enable/disable UI buttons during processing.
+     */
     private void toggleButtons(boolean enabled) {
         SwingUtilities.invokeLater(() -> {
             compressButton.setEnabled(enabled);
@@ -314,6 +376,9 @@ public class App extends JFrame {
         });
     }
 
+    /**
+     * Formats bytes into human-readable units (KB, MB, GB).
+     */
     private String formatSize(long v) {
         if (v < 1024) return v + " B";
         int z = (63 - Long.numberOfLeadingZeros(v)) / 10;

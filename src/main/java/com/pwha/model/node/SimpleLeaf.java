@@ -2,8 +2,19 @@ package com.pwha.model.node;
 
 import com.pwha.model.ByteArrayWrapper;
 
+/**
+ * Represents a leaf node in the Lower Layer (Pattern Tree).
+ * This node stores the actual byte sequence (pattern) that acts as the leaf data in the Huffman Tree.
+ * <p>
+ * Key Logic:
+ * 1. Wraps the byte pattern (e.g., "tion" or "the") using {@link ByteArrayWrapper}.
+ * 2. Implements specific comparison logic to organize the Priority Queue.
+ */
 public class SimpleLeaf extends HNode {
+
+    // The actual pattern data wrapped for safe usage (handling byte[] equality).
     private ByteArrayWrapper pattern;
+
     public SimpleLeaf(ByteArrayWrapper pattern, int frequency) {
         super(frequency);
         this.pattern = pattern;
@@ -17,14 +28,16 @@ public class SimpleLeaf extends HNode {
         this.pattern = pattern;
     }
 
-    //This method for checking this leaf holding a char or a pattern.
+    // Checks if this leaf holds a single character or a multi-character pattern.
+    // Returns true if the pattern length is 1 or less.
     public boolean isChar(){
         return pattern.length() <= 1;
     }
 
-    //This method for converting byte buffer to String.
+    // Converts the wrapped byte array into a String.
+    // Useful for debugging, logging, or visualizing the pattern content.
     public String convertString(){
-        byte[] data = this.pattern.data();
+        byte[] data = this.pattern.data(); // Access data from the record
 
         return new String(data);
     }
@@ -36,7 +49,7 @@ public class SimpleLeaf extends HNode {
 
     @Override
     public boolean isContextLeaf(){
-        return false;
+        return false; // This is a SimpleLeaf (Pattern), not a ContextLeaf.
     }
 
     @Override
@@ -44,30 +57,30 @@ public class SimpleLeaf extends HNode {
         return true;
     }
 
-    //This method important for compare the other nodes.
-    //We are comparing nodes in Priority Queue.
+    // Critical method for defining the order of nodes in the Priority Queue.
+    // Determines which nodes are processed first during Huffman Tree construction.
     @Override
     public int compareTo(HNode other){
-        //Firstly we are comparing node's frequency value.
-        //If a node's frequency vale less than the other it means this node will be ahead from the other node.
-        //compare method turning an int value.If this value is positive it means our node frequency bigger the other.
-        //If this value negative it means our node frequency value smaller than the other.
-        //If this value equals the zero it means these two node's frequency value equal.
+        // Step 1: Compare based on frequency.
+        // The Min-Priority Queue prioritizes lower frequency nodes (Smallest comes first).
         int freqCompare = Integer.compare(this.getFrequency(), other.getFrequency());
 
-        //We are checking compare value.If compare value zero like a said before these values equals the other.
-        //If compare value different from then 0 we are returning compare value.
+        // If frequencies are different, return the result.
+        // Negative: this node is smaller (higher priority).
+        // Positive: this node is larger (lower priority).
         if(freqCompare != 0) {
             return freqCompare;
         }
 
-        //If compare value equals the zero it means our frequency values equals.
+        // Step 2: Tie-Breaking Strategy (If frequencies are equal).
         /*
-        Because the two nodes have the same frequency,
-        Java will randomly place nodes with the same value in the queue.
-        However, we still want long patterns to be at the back of the queue.
-        Because in the Huffman algorithm, the further you are in the priority queue, the longer your Huffman code will be.
-         For byte arrays with the same frequency, we want long patterns to be at the back of the queue, while short patterns are at the front of the queue.
+         * When two nodes have the same frequency, the standard PriorityQueue might order them arbitrarily.
+         * To ensure a deterministic and optimized tree structure, we use Pattern Length as a secondary sort key.
+         *
+         * Logic:
+         * - Shorter patterns are considered 'smaller' -> Popped first from the queue.
+         * - Longer patterns are considered 'larger' -> Stay in the queue longer (placed at the back).
+         * * This strategy aims to optimize the resulting Huffman code lengths for specific pattern types.
          */
         return Integer.compare(this.getPatternLength(), other.getPatternLength());
     }
